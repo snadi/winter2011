@@ -1,0 +1,63 @@
+== Getting preconditions ==
+As a result of the undertaker infrastructure we can easily calculate preconditions for preprocessor blocks in a file, just by specifying the file and linenumber. If a configuration model is loaded, it will also fetch all interessting items from the model. Say you want to have the block precondition for line 359 and line 370 in init/main.c.
+
+{{{
+$ undertaker -j blockpc init/main.c:359 init/main.c:370
+I: Block B20 | Defect: no | Global: 0
+B20
+&&
+( B18 <->  ! CONFIG_SMP )
+&& ( B20 <->  ( B18 )  && CONFIG_X86_LOCAL_APIC )
+&& ( B22 <->  ( B18 )  && ( ! (B20) )  )
+&& ( B25 <-> ( ! (B18) )  )
+
+I: Block B25 | Defect: no | Global: 0
+B25
+&&
+( B18 <->  ! CONFIG_SMP )
+&& ( B20 <->  ( B18 )  && CONFIG_X86_LOCAL_APIC )
+&& ( B22 <->  ( B18 )  && ( ! (B20) )  )
+&& ( B25 <-> ( ! (B18) )  )
+}}}
+
+If you have loaded models it will use the '''main model'''. If only one model is loaded this is used as main model:
+{{{
+$ undertaker -j blockpc -m models/x86.model  init/main.c:370
+I: loaded rsf model for x86
+I: Using x86 as primary model
+I: Block B25 | Defect: no | Global: 0
+B25
+&&
+( B18 <->  ! CONFIG_SMP )
+&& ( B20 <->  ( B18 )  && CONFIG_X86_LOCAL_APIC )
+&& ( B22 <->  ( B18 )  && ( ! (B20) )  )
+&& ( B25 <-> ( ! (B18) )  )
+
+&&
+(CONFIG_X86_32 -> ((!CONFIG_64BIT)))
+&&
+(CONFIG_X86_32_NON_STANDARD -> ((CONFIG_X86_32 && CONFIG_SMP && CONFIG_X86_EXTENDED_PLATFORM)))
+&&
+(CONFIG_X86_64 -> ((CONFIG_64BIT)))
+&&
+(CONFIG_X86_EXTENDED_PLATFORM -> ((CONFIG_X86_64) && (CONFIG_X86_32)))
+&&
+(CONFIG_X86_LOCAL_APIC -> ((CONFIG_X86_64 || CONFIG_SMP || CONFIG_X86_32_NON_STANDARD || CONFIG_X86_UP_APIC) && (CONFIG_X86_64 || CONFIG_SMP || CONFIG_X86_32_NON_STANDARD || CONFIG_X86_UP_APIC)))
+&&
+(CONFIG_X86_UP_APIC -> ((CONFIG_X86_32 && !CONFIG_SMP && !CONFIG_X86_32_NON_STANDARD)))
+}}}
+
+Another possibility, when loaded a model is the symbol precondition ('''symbolpc'''). This will give you a formula, which represents the parts of the configuration that are relevant for this symbol. Similar to symbolpc is interessting, which calculated the symbol preconditions, but only prints a set of symbols, that are related to the given symbol:
+
+{{{
+$ undertaker -m models/x86.model -j symbolpc CONFIG_X86_32
+I: loaded rsf model for x86
+I: Using x86 as primary model
+I: Symbol Precondition for `CONFIG_X86_32'
+(CONFIG_X86_32 -> ((!CONFIG_64BIT)))
+
+$ undertaker -m models/x86.model -j interesting CONFIG_X86_32
+I: loaded rsf model for x86
+I: Using x86 as primary model
+CONFIG_X86_32 CONFIG_64BIT
+}}}

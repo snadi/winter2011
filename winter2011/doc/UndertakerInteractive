@@ -1,0 +1,37 @@
+= Using an interactive shell =
+
+undertaker starts an interactive shell, if the file to be analysed is '''-''', the default 
+
+{{{
+$ undertaker -
+dead>>> ::blockpc init/main.c:370
+I: Block B25 | Defect: no | Global: 0
+B25
+&&
+( B18 <->  ! CONFIG_SMP )
+&& ( B20 <->  ( B18 )  && CONFIG_X86_LOCAL_APIC )
+&& ( B22 <->  ( B18 )  && ( ! (B20) )  )
+&& ( B25 <-> ( ! (B18) )  )
+
+blockpc>>> init/main.c:359
+I: Block B20 | Defect: no | Global: 0
+B20
+&&
+( B18 <->  ! CONFIG_SMP )
+&& ( B20 <->  ( B18 )  && CONFIG_X86_LOCAL_APIC )
+&& ( B22 <->  ( B18 )  && ( ! (B20) )  )
+&& ( B25 <-> ( ! (B18) )  )
+
+blockpc>>> 
+}}}
+
+The promt has the form "${default operation}>>>". If the input doesn't start with an '''::''' the default operation is performed for the input. If it starts with an :: it is an switch of the default operation or an model command:
+
+|| ::dead        || new mode of operation is dead/undead analysis ||
+|| ::blockpc     || block preconditions are calculated            || 
+|| ::symbolpc    || symbol preconditions are calculated           ||
+|| ::${mode}     || everything that can be specified with -j      ||
+|| ::load <file> || loads an model file into the model database   ||
+|| ::main-model  || change the main model on the fly              ||
+
+There is an [wiki:UndertakerElDocumentation inferior mode] for the emacs operating system.
