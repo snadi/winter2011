@@ -1,0 +1,122 @@
+= Dead block analysis =
+
+Given the following code example:
+
+{{{
+#!c
+#ifdef CONFIG_A
+#ifdef CONFIG_B
+BLOCK_1
+#endif
+#endif
+
+#ifdef CONFIG_A
+#ifdef CONFIG_C
+BLOCK_2
+#endif
+#endif
+
+#if CONFIG_A && CONFIG_B
+#ifndef CONFIG_B
+BLOCK_3
+#endif
+#endif
+}}}
+
+In a piece of preprocessed code, you have different blocks, which are structured by ifdefs. We can give an boolean precondition for every block, just by analysing the code. When giving a precondition, we assume that the block is selected and what can we deduce from this fact. Here we would get a formula for each block:
+
+{{{
+BLOCK_1 → CONFIG_A && CONFIG_B
+BLOCK_2 → CONFIG_A && CONFIG_C
+BLOCK_3 → CONFIG_A && CONFIG_B && !CONFIG_B
+}}}
+
+At this point we already see, that BLOCK_3 can never be selected. Such a dead block we call '''code dead''', because it is already dead '''without''' an inconsitent configuration model. Therefore we can do this analysis for every C file, even if we don't have a model.
+
+But we can also add our configuration model to the analysing process. Let's assume that our model is:
+
+{{{
+CONFIG_A "!CONFIG_C && CONFIG_X"
+CONFIG_C
+}}}
+
+Now our BLOCK_2 is also dead, because the configuration tool assures the dependency that CONFIG_C is disabled if CONFIG_A is enabled. We get as a formula for BLOCK_2:
+
+{{{
+BLOCK_2 
+&& (BLOCK_2 -> (CONFIG_A && CONFIG_C))
+&& (CONFIG_A -> (!CONFIG_C && CONFIG_X))
+}}}
+
+There can't be an assignment for this formula, because CONFIG_C and !CONFIG_C must be true at the same time. Such a dead we call '''kconfig dead'''.
+
+But there is a third possibility for a block being dead. Assume we have a ''different'' model for the piece of code:
+
+{{{
+CONFIG_A "CONFIG_X && CONFIG_Y"
+CONFIG_C
+CONFIG_Y
+}}}
+
+Here our formula for the block would be satisfiable, but there is a different problem. We assume, that all preprocessor variables that start with '''CONFIG_''' can only be enabled by the configuration programm. But as we see in the model the configuration model doesn't know anything about the symbol '''CONFIG_X'''. It is missing in the config, and can't ever be enabled. The formula for BLOCK_2 would now be:
+
+{{{
+BLOCK_2
+&& (BLOCK_2 -> (CONFIG_A && CONFIG_C))
+&& (CONFIG_A -> (CONFIG_X && CONFIG_Y))
+&& (! CONFIG_X)
+}}}
+
+If the block is dead because items are missing in the configuration we call it '''missing deads'''.
+
+
+== Undead blocks ==
+
+A block is undead, if it can't be deselected by any configuration, that it will always be compiled. The most simple case of such an undead is '''#if 1'''. But there are more complicated examples:
+
+{{{
+#!c
+#if A
+BLOCK_1
+#if B
+BLOCK_2
+#if A
+BLOCK_3
+#endif
+#endif
+#endif
+}}}
+
+Here we see, that BLOCK_3 is always selected when BLOCK_2 is selected, because A=1, when BLOCK_2 is selected. To find an undead block we search for an assignment where the parent block is selected and the child block deselected. If don't find such an assignment it is undead.
+
+== In the undertaker ==
+The undertaker does dead/undead analysis when the mode of operation is '''dead''' (specified by '''-j dead'''). If no model is loaded (no -m option is given) it just will do an search for code dead/undead blocks in the specified files.
+
+If models are loaded with -m it will also do an code dead/undead analysis, but will afterwards test the blocks for kconfig and missing defects. It will first check if the block is dead or undead in the main model (specified with '''-M'''). If there is a defect it will do an crosscheck on all other loaded models, and check if it is an globally dead. 
+
+When identified such an defect it create an dead file e.g:
+
+{{{
+./kernel/sched.c.B360.x86.missing.dead
+./kernel/sched.c.B447.missing.globally.dead
+}}}
+
+In the files more informations about the block is given. The first line gives general information about the block:
+
+{{{
+$ head ./kernel/sched.c.B447.missing.globally.dead
+#B447:kernel/sched.c:7375:1:kernel/sched.c:7377:1:symbolic
+B447
+&&
+( B333 <-> CONFIG_SMP )
+&& ( B335 <->  ( B333 )  && CONFIG_SCHED_DEBUG )
+&& ( B337 <->  ( B333 )  && ( ! (B335) )  )
+&& ( B340 <->  ( B333 )  && CONFIG_NUMA )
+&& ( B343 <->  ( B333 )  && CONFIG_NUMA )
+&& ( B346 <->  ( B333 )  && CONFIG_NUMA )
+&& ( B349 <->  ( B333 )  && CONFIG_SCHED_SMT )
+}}}
+
+The Block 4477 is located at kernel/sched.c from line 7375 to 7377. After this the formula and the parsed formula, in a pretty printed form, follows in the file.
+
+A complete dead analysis for the linux kernel can be started with '''undertaker-linux-tree'''. It will check for models (created with undertaker-kconfigdump), find all .c, .h, .S files and will start an analysis on all files with the models loaded.

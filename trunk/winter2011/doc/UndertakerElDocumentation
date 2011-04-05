@@ -1,0 +1,57 @@
+The undertaker emacs mode is part of the VAMOS undertaker project. It is shiped as [source:contrib/undertaker.el] and allows you to run an interactive undertaker process in a buffer. It allows you to send your actual position or an symbol under the cursor directly to the undertaker process in order to retrieve information about the CPP precondition at this point or about the symbol.
+
+Put it somewhere in your load-path. For example to '''~/.emacs.d/'''.:
+
+{{{
+mkdir -p ~/.emacs.d && cp contrib/undertaker.el ~/.emacs.d
+}}}
+
+Don't forget to add '''~/.emacs.d''' to your load-path. Afterwards you can load the mode with '''M-x load-library RET undertaker RET''':
+
+{{{
+(add-to-list 'load-path "~/.emacs.d")
+}}}
+
+== Usage and Example ==
+[[Image(undertaker.el-screenshot.png)]]
+
+ * C-c u b - Block precondition
+ * C-c u i - All interessting symbols for symbol under point (feature model must be loaded for this)
+ * C-c u s - Symbol precondition for symbol under point (feature model must be loaded for this)
+
+Visit the you whish to examine and enable the undertaker minor mode with '''M-x undertaker-mode'''. If we have for example the following piece of C Code and no feature model for this, but want to get the preconditions for various blocks.
+
+{{{
+ 1 #ifdef A
+ 2 int Alive;
+ 3 #endif
+ 4
+ 5 #if CONFIG_B && CONFIG_A
+ 6 int alive;
+ 7 #ifndef CONFIG_B
+ 8 int dead;
+ 9 #endif
+10 #endif
+}}}
+
+If you put your point to line 2 and press '''C-c u b''' the current position in file will be sent to the undertaker process and you will get the block precondition for the first block:
+{{{
+I: Block B0 | Defect: no | Global: 0
+B0
+&&
+( B0 <-> A )
+}}}
+
+Here you can see, that you examined Block 0 (B), that it isn't dead and that B0 is enabled iff A is enabled. If we ask for the precondition at line 8 we will get a slightly other result, as the code block is dead.
+
+{{{
+I: Block B5 | Defect: dead/code | Global: 1
+B5
+&&
+( B3 <-> CONFIG_B && CONFIG_A )
+&& ( B5 <->  ( B3 )  &&  ! CONFIG_B )
+}}}
+
+Here you can see that we have examined B5, which depends upon B3 and !CONFIG_B, but B3 relies also on CONFIG_B. So it can never be fullfilled and the block is code dead. For more information about the interactive undertaker shell see the general UndertakerDocumentation.
+
+
