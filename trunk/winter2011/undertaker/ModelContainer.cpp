@@ -201,6 +201,16 @@ ConfigurationModel *ModelContainer::lookupMainModel() {
     return ModelContainer::lookupModel(f->main_model.c_str());
 }
 
+void ModelContainer::setModelExplicitlySpecified(bool value){
+    ModelContainer *f = getInstance();
+	f->modelExplicitlySpecified = value;
+}
+
+bool ModelContainer::isModelExplicitlySpecified(){
+    ModelContainer *f = getInstance();
+return f->modelExplicitlySpecified;
+}
+
 void ModelContainer::setMainModel(std::string main_model) {
     ModelContainer *f = getInstance();
     if (!ModelContainer::lookupModel(main_model.c_str())) {

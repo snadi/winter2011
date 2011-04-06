@@ -62,7 +62,7 @@ BlockCloud::~BlockCloud() {
         delete _constraints;
 }
 
-const std::string& BlockCloud::getConstraints(std::string filename) const {
+const std::string& BlockCloud::getConstraints() const {
     StringJoiner sj;
 
     if (_constraints)
@@ -74,13 +74,6 @@ const std::string& BlockCloud::getConstraints(std::string filename) const {
         std::string exp = expression(i);
         pc.push_back(exp);
         pc.push_back(noPredecessor(i));
-	
-//sarah
-//	std::string makeconstraints = makeConstraints(filename);
-
-//	if(!makeconstraints.empty())
-//		pc.push_back("(" + makeconstraints + ")");
-//endsarah
 
         std::string bn = getBlockName(i);
         sj.push_back("( " + bn + " <-> " + pc.join(" && ") + " )");
@@ -92,7 +85,6 @@ const std::string& BlockCloud::getConstraints(std::string filename) const {
         std::string position = ss.str();
         this->positions[bn] = position;
     }
-
     _constraints = new std::string(sj.join("\n&& "));
 
     return *_constraints;
@@ -168,7 +160,6 @@ std::string BlockCloud::parent(index n) const {
 std::string BlockCloud::expression(index n) const {
     return item(n).expression();
 }
-
 
 std::string BlockCloud::noPredecessor(index n) const {
     std::stringstream ss;
@@ -263,7 +254,7 @@ const std::string& CloudContainer::getConstraints() {
 
     for (CloudList::iterator c = this->begin(); c != this->end(); c++) {
         try {
-            sj.push_back(c->getConstraints(_filename));
+            sj.push_back(c->getConstraints());
             cloudno++;
         } catch (std::runtime_error &e) {
             std::cerr << "failed to process cloud no: "  << cloudno << std::endl
@@ -276,7 +267,6 @@ const std::string& CloudContainer::getConstraints() {
 
     sj.push_back("B00");
     _constraints = new std::string(sj.join("\n&& "));
-
 
     return *_constraints;
 }

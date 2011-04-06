@@ -184,7 +184,7 @@ void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels
     std::string matched_block;
     CodeSatStream *sat_stream = 0;
     for (CloudList::iterator c = cloud.begin(); c != cloud.end(); c++) {
-        std::istringstream codesat(c->getConstraints(std::string(filename)));
+        std::istringstream codesat(c->getConstraints());
         CodeSatStream *analyzer = new CodeSatStream(codesat, cloud,
                                                     &(*c), false, loadModels);
 
@@ -219,7 +219,7 @@ void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels
               << " | Defect: " << defect_string
               << " | Global: " << (defect != 0 ? defect->isGlobal() : 0)<< std::endl;
 
-    std::cout << precondition << std::endl;
+   // std::cout << precondition << std::endl;
 }
 
 void process_file_dead(const char *filename, bool batch_mode, bool loadModels) {
@@ -233,7 +233,7 @@ void process_file_dead(const char *filename, bool batch_mode, bool loadModels) {
 
 fileCounter++;
     for (CloudList::iterator c = clouds.begin(); c != clouds.end(); c++) {
-        std::istringstream cloud((*c).getConstraints(std::string(filename)));
+        std::istringstream cloud((*c).getConstraints());
         std::istringstream cs(cloud_constrains);
 
         // If we have no defines in the file we can surely use only
@@ -340,6 +340,7 @@ int main (int argc, char ** argv) {
     int threads = 1;
     std::list<std::string> models;
     std::string main_model = "x86";
+bool modelExplicitlySpecified = false;
     /* Default is dead/undead analysis */
     std::string process_mode = "dead";
     process_file_cb_t process_file = process_file_dead;
@@ -379,6 +380,7 @@ int main (int argc, char ** argv) {
             break;
         case 'M':
             /* Specify a new main arch */
+		modelExplicitlySpecified = true;
             main_model = std::string(optarg);
             break;
         case 'm':
@@ -452,6 +454,8 @@ int main (int argc, char ** argv) {
     } else if (f->size() > 1) {
         f->setMainModel(main_model);
     }
+
+f->setModelExplicitlySpecified(modelExplicitlySpecified);
 
 
 

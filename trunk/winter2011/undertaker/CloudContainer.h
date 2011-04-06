@@ -28,8 +28,6 @@
 #include <map>
 
 #include "Ziz.h"
-#include "MakeModel.h"
-
 
 int getLineFromPos(position_type pos);
 
@@ -64,7 +62,7 @@ public:
     typedef unsigned int index;
     BlockCloud();
     BlockCloud(Ziz::ConditionalBlock *bc);
-    const std::string& getConstraints(std::string filename) const;
+    const std::string& getConstraints() const;
     ~BlockCloud();
     int scanBlocks(Ziz::BlockContainer *b);
     std::string getBlockName(index n) const;
@@ -77,13 +75,10 @@ protected:
     std::string noPredecessor(index n) const; //< @return the ORed '|' expression of all preds
     const ZizCondBlockPtr &item(index n) const;
     int bId(index i) const; //< @return the block id the given index
-//sarah
-	std::string makeConstraints(std::string filename) const;
 
 private:
     mutable std::string *_constraints;
     mutable std::map<std::string,std::string> positions;
-
 };
 
 typedef std::map<std::string, std::string> ParentMap;
@@ -115,7 +110,6 @@ protected:
 
     std::map<std::string,std::string> rewriteDefine_last_change;
     std::map<std::string,std::list<int> > rewriteDefine_new_vars;
-
 
 };
 
