@@ -47,6 +47,10 @@ public:
     static ConfigurationModel *lookupMainModel();
     static void setMainModel(std::string);
 
+   static void setModelExplicitlySpecified(bool value);
+
+static bool isModelExplicitlySpecified();
+
     /// returns the main model as string or NULL, if not set
     static const char *getMainModel();
 
@@ -55,6 +59,7 @@ private:
     std::string main_model;
     ConfigurationModel *registerModelFile(std::string filename, std::string arch);
     static bool isArchName(std::string archName);
+	bool modelExplicitlySpecified;
     ~ModelContainer();
 };
 

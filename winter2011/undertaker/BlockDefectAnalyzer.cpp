@@ -68,7 +68,6 @@ DeadBlockDefect::DeadBlockDefect(CodeSatStream *cs, const char *block)
     this->_cs = cs;
 }
 
-
 bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
     StringJoiner formula;
 
@@ -76,8 +75,6 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
         _arch = ModelContainer::lookupArch(model);
 
     formula.push_back(_block);
-
-
     formula.push_back(_cs->getCodeConstraints());
     SatChecker code_constraints(_formula = formula.join("\n&&\n"));
 
@@ -95,20 +92,18 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if(!make_constraints()){
 	_defectType = Make;
 	_isGlobal = true;
-	_formula = formula_str;
+	_formula = makeformula;
 	return true;
     }
 
     if (model) {
         std::set<std::string> missingSet;
         formula.push_back(_cs->getKconfigConstraints(model, missingSet));
-
         std::string formula_str = formula.join("\n&&\n");
         SatChecker kconfig_constraints(formula_str);
 
         if (!kconfig_constraints()) {
             if (_defectType != Configuration) {
-
                 // Wasn't already identified as Configuration defect
                 // crosscheck doesn't overwrite formula
                 _formula = formula_str;
@@ -278,7 +273,7 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if(!make_constraints()){
 	_defectType = Make;
 	_isGlobal = true;
-	_formula = formula_str;
+	_formula = makeformula;
 	return true;
     }
 
@@ -286,7 +281,6 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if (model) {
         std::set<std::string> missingSet;
         formula.push_back(_cs->getKconfigConstraints(model, missingSet));
-
         std::string formula_str = formula.join("\n&&\n");
         SatChecker kconfig_constraints(formula_str);
 
@@ -297,12 +291,10 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
                 _formula = formula_str;
                 _arch = ModelContainer::lookupArch(model);
             }
-	    _formula = formula_str;
             _defectType = Configuration;
             _isGlobal = true;
             return true;
         } else {
-
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
             std::string formula_str = formula.join("\n&&\n");
             SatChecker missing_constraints(formula_str);

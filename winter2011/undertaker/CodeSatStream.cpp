@@ -78,6 +78,7 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
 
         const std::list<std::string> &items = itemsOfString(line);
         for (std::list<std::string>::const_iterator item = items.begin(); item != items.end(); ++item) {
+
             if ((pos = (*item).find(prefix)) != std::string::npos) { // i.e. matched
                 _items.insert(*item);
                 continue;
@@ -94,11 +95,12 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
                 _free_items.insert(*item);
 
             }
-        }	
+        }
 
         (*this) << line << std::endl;
     }
 
+	//add the items in the make constraints to the _items list
 	std::string::size_type pos = std::string::npos;
 	std::ifstream fin("makemodel.model");
 	std::ofstream fout("log.txt");
@@ -126,10 +128,8 @@ std::string CodeSatStream::getKconfigConstraints(const ConfigurationModel *model
                                                  std::set<std::string> &missing) {
     std::stringstream ss;
 
-    if (!_doCrossCheck || model->doIntersect(Items(), ss, missing, &_defineChecker) <= 0){
-	//std::cout<<"return nothing for kconfig"<<std::endl;
+    if (!_doCrossCheck || model->doIntersect(Items(), ss, missing, &_defineChecker) <= 0)
         return "";
-	}
 
     return std::string(ss.str());
 }
@@ -150,18 +150,20 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 
     	BlockDefectAnalyzer *defect = new DeadBlockDefect(this, block);
 
-	//ConfigurationModel *s_model = ModelContainer::getInstance()->lookupRelatedModel(_filename);
-	//bool isArchSpecific = (s_model != NULL);
-	//ConfigurationModel *tmp_model = p_model;
+	ConfigurationModel *s_model = ModelContainer::getInstance()->lookupRelatedModel(_filename);
+	bool isArchSpecific = (s_model != NULL);
+std::cout<<"isarchspecific:"<<isArchSpecific<<std::endl;
+	ConfigurationModel *tmp_model = p_model;
 
-	//if(isArchSpecific)
-	//	p_model = s_model;
+	if(isArchSpecific)
+		p_model = s_model;
 
     	// If this is neither an Implementation, Configuration nor Referential *dead*,
 	// then destroy the analysis and retry with an Undead Analysis
     	if(!defect->isDefect(p_model)) {
         	delete defect;
         	defect = new UndeadBlockDefect(this, block);
+
         	// No defect found, block seems OK
         	if(!defect->isDefect(p_model)) {
         	    delete defect;
@@ -174,14 +176,15 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
     	// (ATM) Implementation and Configuration defects do not require a crosscheck
     	if (!_doCrossCheck || !defect->needsCrosscheck()){
 
-	//	if(isArchSpecific){
-	//		p_model = tmp_model;
-	//	}
+			if(isArchSpecific){
+				p_model = tmp_model;
+			}
 
 	        return defect;
     	}
+std::cout<<"doing cross check"<<std::endl;
 
-	//if(!isArchSpecific){
+	if(!isArchSpecific){
     		ModelContainer *f = ModelContainer::getInstance();
 	    	for (ModelContainer::iterator i = f->begin(); i != f->end(); i++) {
         		const std::string &arch = (*i).first;
@@ -189,18 +192,25 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 
         		if (!defect->isDefect(model)) {
             			defect->markOk(arch);
-				//std::cout<<"found block "<<block<<" not dead on arch"<<arch<<std::endl;
-            			return defect;
+					//std::cout<<"found block "<<block<<" not dead on arch"<<arch<<std::endl;
+					if(!ModelContainer::isModelExplicitlySpecified())
+	            			return defect;
+					else{
+						delete defect;
+						return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
+					}
         		}
     		}
-	//}
+	}
     
+
+
 	defect->defectIsGlobal();
 	
 
-	//if(isArchSpecific){
-	//	p_model = tmp_model;
-	//}
+	if(isArchSpecific){
+		p_model = tmp_model;
+	}
 
     return defect;
 }
