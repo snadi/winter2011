@@ -135,17 +135,16 @@ ConfigurationModel *ModelContainer::lookupModel(const char *arch)  {
 ConfigurationModel* ModelContainer::lookupRelatedModel(std::string fileName)  {
 	ModelContainer *f = getInstance();
 
-
-	if(fileName [0]=='.' && fileName [1] == '/'){
+	if(fileName[0]=='.' && fileName[1] == '/'){
 		fileName  = fileName.substr(2);
 	}
 
-	int index = fileName.find_first_of("arch");
+	int index = fileName.find("arch");
 
-	if(index != std::string::npos){
+	if((index != std::string::npos) && (index < fileName.length())){
 		fileName = fileName.substr(index + 5);
 		
-		index = fileName.find_first_of('/');
+		index = fileName.find('/');
 		if(index != std::string::npos){
 			fileName.erase(index);
 		}
@@ -160,7 +159,7 @@ ConfigurationModel* ModelContainer::lookupRelatedModel(std::string fileName)  {
 	    	ModelContainer::iterator a = f->find(fileName);
 		if (a != f->end()) {
         		// we've found it in our map, so return it
-		std::cout<<"Returning "<<a->second->getName()<<std::endl;
+		//std::cout<<"Returning "<<a->second->getName()<<std::endl;
 	        	return a->second;
 	 	} else {
         		// No model was found

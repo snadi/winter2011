@@ -34,15 +34,30 @@ MakeModel::MakeModel(std::string name, std::ifstream &in, std::ostream &log) : R
 }
 
 std::string MakeModel::getExp(std::string fileName){
-std::string shortfilename = fileName.substr(2);
+	std::string shortfilename = fileName.substr(2);
+
 	for (iterator i = begin(); i != end(); i++){
 		if((fileName.compare((*i).first) == 0) || (shortfilename.compare((*i).first) == 0) ){
 			//std::cout<<"returning something"<<std::endl;
-			return "( " + (*i).second.front() + " )";
+			if((*i).second.front().length() != 0)
+				return "( " + (*i).second.front() + " )";
+			else
+				return "";
 		}
 	}
-
 return "";
+}
+
+bool MakeModel::isRelevent(std::string fileName){
+	std::string shortfilename = fileName.substr(2);
+
+	if( (getValue(fileName) != NULL) || (getValue(shortfilename) != NULL)  ){
+		std::cout<<"checking: "<<fileName<<" returning true"<<std::endl;
+		return true;
+	}
+
+		std::cout<<"checking: "<<fileName<<" returning false"<<std::endl;
+	return false;
 }
 
 
