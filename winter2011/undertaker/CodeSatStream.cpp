@@ -45,9 +45,10 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
                              const CloudContainer &cloudContainer,
                              BlockCloud *blockCloud,
                              bool batch_mode,
-                             bool loadModels)
+                             bool loadModels,
+			     bool loadMakeModels)
     : _istream(ifs), _items(), _free_items(), _blocks(), _filename(cloudContainer.getFilename()),
-      _doCrossCheck(loadModels), _cloudContainer(cloudContainer), _blockCloud(blockCloud),
+      _doCrossCheck(loadModels), _doMakeCheck(loadMakeModels), _cloudContainer(cloudContainer), _blockCloud(blockCloud),
       _batch_mode(batch_mode), parents(cloudContainer.getParents()),
       _defineChecker(CodeSatStream::ItemChecker(cloudContainer)) {
 
@@ -100,11 +101,9 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
         (*this) << line << std::endl;
     }
 
-	//add the items in the make constraints to the _items list
+/*	//add the items in the make constraints to the _items list
 	std::string::size_type pos = std::string::npos;
-	std::ifstream fin("makemodel.model");
-	std::ofstream fout("log.txt");
-	MakeModel* makeModel = new MakeModel("mymodel", fin, fout);
+	MakeModel* makeModel = MakeModelContainer::
 	makeConstraints = makeModel->getExp(_filename);
 	delete makeModel;
 	
@@ -113,11 +112,11 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
             if ((pos = (*item2).find(prefix)) != std::string::npos) { // i.e. matched
                 _items.insert(*item2);
             }
-	}
+	}*/
 }
 
-std::string CodeSatStream::getMakeConstraints(){
-	return makeConstraints;
+std::string CodeSatStream::getMakeConstraints(MakeModel *model){
+	return model->getExp(_filename);
 }
 
 std::string CodeSatStream::getCodeConstraints() {
@@ -150,9 +149,9 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 
     	BlockDefectAnalyzer *defect = new DeadBlockDefect(this, block);
 
-	ConfigurationModel *s_model = ModelContainer::getInstance()->lookupRelatedModel(_filename);
+	ConfigurationModel *s_model = ModelContainer::lookupRelatedModel(_filename);
 	bool isArchSpecific = (s_model != NULL);
-std::cout<<"isarchspecific:"<<isArchSpecific<<std::endl;
+
 	ConfigurationModel *tmp_model = p_model;
 
 	if(isArchSpecific)
@@ -174,7 +173,7 @@ std::cout<<"isarchspecific:"<<isArchSpecific<<std::endl;
     	assert(defect->defectType() != BlockDefectAnalyzer::None);
 	
     	// (ATM) Implementation and Configuration defects do not require a crosscheck
-    	if (!_doCrossCheck || !defect->needsCrosscheck()){
+    	if ( isArchSpecific || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
 
 			if(isArchSpecific){
 				p_model = tmp_model;
@@ -182,9 +181,8 @@ std::cout<<"isarchspecific:"<<isArchSpecific<<std::endl;
 
 	        return defect;
     	}
-std::cout<<"doing cross check"<<std::endl;
+//std::cout<<"doing cross check"<<std::endl;
 
-	if(!isArchSpecific){
     		ModelContainer *f = ModelContainer::getInstance();
 	    	for (ModelContainer::iterator i = f->begin(); i != f->end(); i++) {
         		const std::string &arch = (*i).first;
@@ -194,14 +192,14 @@ std::cout<<"doing cross check"<<std::endl;
             			defect->markOk(arch);
 					//std::cout<<"found block "<<block<<" not dead on arch"<<arch<<std::endl;
 					if(!ModelContainer::isModelExplicitlySpecified())
-	            			return defect;
+	            				return defect;
 					else{
 						delete defect;
 						return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
 					}
         		}
     		}
-	}
+	
     
 
 
@@ -217,12 +215,18 @@ std::cout<<"doing cross check"<<std::endl;
 
 void CodeSatStream::analyzeBlocks() {
     ConfigurationModel *p_model = 0;
+	//MakeModel *make_model = 0;
 
     if (_doCrossCheck) {
         ModelContainer *f = ModelContainer::getInstance();
-        p_model = f->lookupMainModel();
+        p_model = f->lookupMainModel();	
     }
-    
+
+	//if(_doMakeCheck){
+	//	MakeModelContainer *mmCont = MakeModelContainer::getInstance();
+		//make_model = mmCont->lookupMainModel();
+	//}
+
     std::set<std::string>::iterator i;
     processed_units++;
     try {

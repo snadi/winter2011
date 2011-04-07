@@ -23,6 +23,7 @@
 #include "StringJoiner.h"
 #include "BlockDefectAnalyzer.h"
 #include "ModelContainer.h"
+#include "MakeModelContainer.h"
 #include<fstream>
 
 //sarah
@@ -45,8 +46,11 @@ std::string BlockDefectAnalyzer::getBlockPrecondition(const ConfigurationModel *
     formula.push_back(_block);
     formula.push_back(_cs->getCodeConstraints());
 
+
+	MakeModel* makeModel = MakeModelContainer::lookupModel(ModelContainer::lookupArch(model));
 	/* Adding make constraints */
-	formula.push_back(_cs->getMakeConstraints());
+if(makeModel)
+	formula.push_back(_cs->getMakeConstraints(makeModel));
    
 
 
@@ -74,6 +78,13 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if(!_arch)
         _arch = ModelContainer::lookupArch(model);
 
+	MakeModel* makeModel = MakeModelContainer::lookupModel(_arch);
+
+	//if this file is not relevent to the arch being examined, then return false without examination
+	if(!makeModel->isRelevent( _cs->getFilename()))
+		return false;
+
+
     formula.push_back(_block);
     formula.push_back(_cs->getCodeConstraints());
     SatChecker code_constraints(_formula = formula.join("\n&&\n"));
@@ -85,16 +96,23 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
     }
 
     //sarah
-    formula.push_back(_cs->getMakeConstraints());
-    std::string makeformula = formula.join("\n&&\n");
-    SatChecker make_constraints(makeformula);
 
-    if(!make_constraints()){
-	_defectType = Make;
-	_isGlobal = true;
-	_formula = makeformula;
-	return true;
-    }
+	if(makeModel){
+    		formula.push_back(_cs->getMakeConstraints(makeModel));
+    		std::string makeformula = formula.join("\n&&\n");
+
+std::cout<<"make part: "<<_cs->getMakeConstraints(makeModel)<<std::endl;
+    		SatChecker make_constraints(makeformula);
+
+		if(!make_constraints()){
+			if(_defectType != Make){
+				_formula = makeformula;
+				_arch = ModelContainer::lookupArch(model);
+			}
+			_defectType = Make;			
+			return true;
+    		}
+	}
 
     if (model) {
         std::set<std::string> missingSet;
@@ -110,7 +128,7 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
                 _arch = ModelContainer::lookupArch(model);
             }
             _defectType = Configuration;
-            _isGlobal = true;
+           // _isGlobal = true;
             return true;
         } else {
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
@@ -134,8 +152,10 @@ bool DeadBlockDefect::needsCrosscheck() const {
     switch(_defectType) {
     case None:
     case Implementation:
+	return false;
     case Configuration:
-        return false;
+    case Make:
+	return !ModelContainer::isModelExplicitlySpecified();
     default:
         // skip crosschecking if we already know that it is global
         return !_isGlobal;
@@ -189,7 +209,7 @@ filename_sar = "output/" + filename_sar ;
     fname_joiner.push_back(filename_sar);
     fname_joiner.push_back(_block);
 
-    if(_arch && (!_isGlobal || _defectType == Configuration))
+    if(_arch && !_isGlobal)// || _defectType == Configuration))
         fname_joiner.push_back(_arch);
 
     switch(_defectType) {
@@ -255,6 +275,12 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if (!_arch)
         _arch = ModelContainer::lookupArch(model);
 
+	MakeModel* makeModel = MakeModelContainer::lookupModel(_arch);
+
+//if this file is not relevent to the arch being examined, then return false without examination
+	if(!makeModel->isRelevent( _cs->getFilename()))
+		return false;
+
     formula.push_back("( " + std::string(parent) + " && ! " + std::string(_block) + " )");
     formula.push_back(_cs->getCodeConstraints());
     SatChecker code_constraints(_formula = formula.join("\n&&\n"));
@@ -266,16 +292,22 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     }
 
 	//sarah
-    formula.push_back(_cs->getMakeConstraints());
-    std::string makeformula = formula.join("\n&&\n");
-    SatChecker make_constraints(makeformula);
 
-    if(!make_constraints()){
-	_defectType = Make;
-	_isGlobal = true;
-	_formula = makeformula;
-	return true;
-    }
+	if(makeModel){
+    		formula.push_back(_cs->getMakeConstraints(makeModel));
+    		std::string makeformula = formula.join("\n&&\n");
+    		SatChecker make_constraints(makeformula);
+
+		if(!make_constraints()){
+			if(_defectType != Make){
+				_formula = makeformula;
+				_arch = ModelContainer::lookupArch(model);
+			}
+			_defectType = Make;			
+			return true;
+    		}
+	}
+
 
 
     if (model) {
@@ -292,7 +324,7 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
                 _arch = ModelContainer::lookupArch(model);
             }
             _defectType = Configuration;
-            _isGlobal = true;
+           // _isGlobal = true;
             return true;
         } else {
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));

@@ -12,12 +12,13 @@
 
 #include "KconfigWhitelist.h"
 #include "ModelContainer.h"
+#include "MakeModelContainer.h"
 #include "CloudContainer.h"
 #include "CodeSatStream.h"
 #include "BlockDefectAnalyzer.h"
 
 typedef std::deque<BlockCloud> CloudList;
-typedef void (* process_file_cb_t) (const char *filename, bool batch_mode, bool loadModels);
+typedef void (* process_file_cb_t) (const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels);
 static int fileCounter = 0;
 
 
@@ -82,7 +83,7 @@ int rm_pattern(const char *pattern) {
     return nr;
 }
 
-void process_file_coverage(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_coverage(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     CloudContainer s(filename);
     if (!s.good()) {
         std::cerr << "E: failed to open file: `" << filename << "'" << std::endl;
@@ -143,7 +144,7 @@ void process_file_coverage(const char *filename, bool batch_mode, bool loadModel
     }
 }
 
-void process_file_cpppc(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_cpppc(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     (void) batch_mode;
     (void) loadModels;
 
@@ -161,7 +162,7 @@ void process_file_cpppc(const char *filename, bool batch_mode, bool loadModels) 
     }
 }
 
-void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     (void) batch_mode;
 
     std::string fname = std::string(filename);
@@ -219,10 +220,11 @@ void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels
               << " | Defect: " << defect_string
               << " | Global: " << (defect != 0 ? defect->isGlobal() : 0)<< std::endl;
 
-   // std::cout << precondition << std::endl;
+    std::cout << precondition << std::endl;
 }
 
-void process_file_dead(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_dead(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
+std::cout<<"in process file"<<std::endl;
     CloudContainer clouds(filename);
     if (!clouds.good()) {
         std::cerr << "E: failed to open file: `" << filename << "'" << std::endl;
@@ -239,10 +241,10 @@ fileCounter++;
         // If we have no defines in the file we can surely use only
         // the expression for a single block cloud and not the whole file
         if (clouds.getDefinesMap().size() == 0) {
-            CodeSatStream analyzer(cloud, clouds, &(*c), batch_mode, loadModels);
+            CodeSatStream analyzer(cloud, clouds, &(*c), batch_mode, loadModels, loadMakeModels);
             analyzer.analyzeBlocks();
         } else {
-            CodeSatStream analyzer(cs, clouds, &(*c), batch_mode, loadModels);
+            CodeSatStream analyzer(cs, clouds, &(*c), batch_mode, loadModels, loadMakeModels);
             analyzer.analyzeBlocks();
         }
 
@@ -250,7 +252,7 @@ fileCounter++;
 
 }
 
-void process_file_interesting(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_interesting(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     (void) batch_mode;
 
     if (!loadModels) {
@@ -260,6 +262,7 @@ void process_file_interesting(const char *filename, bool batch_mode, bool loadMo
 
     ConfigurationModel *model = ModelContainer::lookupMainModel();
     assert(model != NULL); // there should always be a main model loaded
+
 
     std::set<std::string> initialItems;
     initialItems.insert(filename);
@@ -283,7 +286,7 @@ void process_file_interesting(const char *filename, bool batch_mode, bool loadMo
     std::cout << std::endl;
 }
 
-void process_file_symbolpc(const char *filename, bool batch_mode, bool loadModels) {
+void process_file_symbolpc(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     (void) batch_mode;
 
     if (!loadModels) {
@@ -406,11 +409,14 @@ bool modelExplicitlySpecified = false;
     }
 
     ModelContainer *f = ModelContainer::getInstance();
+    MakeModelContainer *mmCont = MakeModelContainer::getInstance();
 
     /* Load all specified models */
     for (std::list<std::string>::const_iterator i = models.begin(); i != models.end(); ++i) {
         f->loadModels(*i);
+	mmCont->loadModels(*i);
     }
+
 
     if (whitelist) {
         KconfigWhitelist *wl = KconfigWhitelist::getInstance();
@@ -455,7 +461,15 @@ bool modelExplicitlySpecified = false;
         f->setMainModel(main_model);
     }
 
-f->setModelExplicitlySpecified(modelExplicitlySpecified);
+	f->setModelExplicitlySpecified(modelExplicitlySpecified);
+
+	//Check if there are any make models loaded
+	bool loadMakeModels = mmCont->size() > 0;
+	if(mmCont->size() == 1){
+		mmCont->setMainModel(f->begin()->first);
+	}else if(mmCont->size() > 1){
+		mmCont->setMainModel(main_model);
+	}
 
 
 
@@ -502,7 +516,7 @@ f->setModelExplicitlySpecified(modelExplicitlySpecified);
                 }
             }
             if (line.size() > 0)
-                process_file(line.c_str(), false, f->size() > 0);
+                process_file(line.c_str(), false, f->size() > 0, loadMakeModels);
         }
     } else if (threads > 1) {
         std::cout << workfiles.size() << " files will be analyzed by " << threads << " processes." << std::endl;
@@ -516,7 +530,7 @@ f->setModelExplicitlySpecified(modelExplicitlySpecified);
                 int worked_on = 0;
                 for (unsigned int i = thread_number; i < workfiles.size(); i+= threads) {
                     /* calling the function pointer */
-                    process_file(workfiles[i].c_str(), true, loadModels);
+                    process_file(workfiles[i].c_str(), true, loadModels, loadMakeModels);
                     worked_on++;
                 }
                 std::cerr << "I: finished: " << worked_on << " files done (" << thread_number << ")" << std::endl;
@@ -539,7 +553,7 @@ f->setModelExplicitlySpecified(modelExplicitlySpecified);
         /* Now forks do anything sequential */
         for (unsigned int i = 0; i < workfiles.size(); i++) {
             /* call process_file function pointer */
-            process_file(workfiles[i].c_str(), false, loadModels);
+            process_file(workfiles[i].c_str(), false, loadModels, loadMakeModels);
         }
     }
 

@@ -71,7 +71,7 @@ public:
     CodeSatStream (std::istream &ifs,
                    const CloudContainer &cloudContainer,
                    BlockCloud *blockCloud,
-                   bool batch_mode=false, bool loadModels=false);
+                   bool batch_mode=false, bool loadModels=false, bool loadMakeModels = false);
     const std::set<std::string> &Items()  const { return _items;  }
     const std::set<std::string> &FreeItems()  const { return _free_items;  }
     const std::set<std::string> &Blocks() const { return _blocks; }
@@ -97,7 +97,7 @@ public:
 
     std::string getCodeConstraints();
     std::string getKconfigConstraints(const ConfigurationModel*, MissingSet&);
-    std::string getMakeConstraints();
+    std::string getMakeConstraints(MakeModel* model);
 
     /**
      * \brief Check for configuration coverage
@@ -138,6 +138,7 @@ protected:
     std::set<std::string> _blocks;
     std::string _filename;
     bool _doCrossCheck;
+	bool _doMakeCheck;
     const CloudContainer &_cloudContainer;
     BlockCloud *_blockCloud;
     const bool _batch_mode;
