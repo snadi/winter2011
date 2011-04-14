@@ -164,7 +164,7 @@ void process_file_cpppc(const char *filename, bool batch_mode, bool loadModels, 
 
 void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
     (void) batch_mode;
-
+std::cout<<"in process file blockpc"<<std::endl;
     std::string fname = std::string(filename);
     std::string file, position;
     size_t colon_pos = fname.find_first_of(':');
@@ -205,8 +205,9 @@ void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels
 
 
     ConfigurationModel *model = ModelContainer::lookupMainModel();
+std::cout<<"caling analyze block"<<std::endl;
     const BlockDefectAnalyzer *defect = sat_stream->analyzeBlock(matched_block.c_str(), model);
-
+defect->writeReportToFile();
     /* Get the Precondition */
     DeadBlockDefect dead(sat_stream, matched_block.c_str());
     std::string precondition = dead.getBlockPrecondition(model);
@@ -224,7 +225,6 @@ void process_file_blockpc(const char *filename, bool batch_mode, bool loadModels
 }
 
 void process_file_dead(const char *filename, bool batch_mode, bool loadModels, bool loadMakeModels) {
-std::cout<<"in process file"<<std::endl;
     CloudContainer clouds(filename);
     if (!clouds.good()) {
         std::cerr << "E: failed to open file: `" << filename << "'" << std::endl;
@@ -304,7 +304,7 @@ void process_file_symbolpc(const char *filename, bool batch_mode, bool loadModel
 
 
     /* Find all items that are related to the given item */
-    int valid_items = model->doIntersect(initialItems, std::cout, missingItems);
+    int valid_items = model->doIntersect(initialItems, std::cout, missingItems, "");
 
     if (missingItems.size() > 0) {
         /* given symbol is in the model */
@@ -416,6 +416,7 @@ bool modelExplicitlySpecified = false;
         f->loadModels(*i);
 	mmCont->loadModels(*i);
     }
+
 
 
     if (whitelist) {
@@ -553,6 +554,7 @@ bool modelExplicitlySpecified = false;
         /* Now forks do anything sequential */
         for (unsigned int i = 0; i < workfiles.size(); i++) {
             /* call process_file function pointer */
+		//std::cout<<"FiLE: "<<workfiles[i].c_str()<<std::endl;
             process_file(workfiles[i].c_str(), false, loadModels, loadMakeModels);
         }
     }

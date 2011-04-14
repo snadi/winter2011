@@ -45,7 +45,7 @@ public:
     ConfigurationModel(std::string name, std::ifstream &in, std::ostream &log);
 
     int doIntersect(const std::set<std::string> myset, std::ostream &out,
-                    std::set<std::string> &missing, const Checker *c=NULL) const;
+                    std::set<std::string> &missing, std::string makeConstraints, const Checker *c=NULL) const;
     void findSetOfInterestingItems(std::set<std::string> &working) const;
     static std::string getMissingItemsConstraints(std::set<std::string> &missing);
     std::string getName() const { return _name; }

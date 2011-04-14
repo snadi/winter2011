@@ -96,7 +96,7 @@ public:
     std::string getLine(const char *block) const;
 
     std::string getCodeConstraints();
-    std::string getKconfigConstraints(const ConfigurationModel*, MissingSet&);
+    std::string getKconfigConstraints(const ConfigurationModel*, MissingSet&, std::string makeConstraints);
     std::string getMakeConstraints(MakeModel* model);
 
     /**

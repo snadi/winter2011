@@ -41,23 +41,24 @@ void BlockDefectAnalyzer::markOk(const std::string &arch) {
 
 std::string BlockDefectAnalyzer::getBlockPrecondition(const ConfigurationModel *model) const {
     StringJoiner formula;
-
+std::cout<<"getting block precondition"<<std::endl;
     /* Adding block and code constraints extraced from code sat stream */
     formula.push_back(_block);
     formula.push_back(_cs->getCodeConstraints());
 
 
 	MakeModel* makeModel = MakeModelContainer::lookupModel(ModelContainer::lookupArch(model));
+std::string makeConstraints = _cs->getMakeConstraints(makeModel);
 	/* Adding make constraints */
 if(makeModel)
-	formula.push_back(_cs->getMakeConstraints(makeModel));
+	formula.push_back(makeConstraints);
    
 
 
     if (model) {
         /* Adding kconfig constraints and kconfig missing */
         std::set<std::string> missingSet;
-        formula.push_back(_cs->getKconfigConstraints(model, missingSet));
+        formula.push_back(_cs->getKconfigConstraints(model, missingSet, makeConstraints));
         formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
     }
 
@@ -80,28 +81,32 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
 
 	MakeModel* makeModel = MakeModelContainer::lookupModel(_arch);
 
-	//if this file is not relevent to the arch being examined, then return false without examination
-	if(!makeModel->isRelevent( _cs->getFilename()))
-		return false;
-
-
     formula.push_back(_block);
     formula.push_back(_cs->getCodeConstraints());
-    SatChecker code_constraints(_formula = formula.join("\n&&\n"));
+	std::string codeFormula = formula.join("\n&&\n");
+    SatChecker code_constraints(codeFormula);
 
     if (!code_constraints()) {
         _defectType = Implementation;
         _isGlobal = true;
+	_formula = codeFormula;
+//std::cout<<"returning code defect"<<std::endl;
         return true;
     }
 
-    //sarah
+//std::cout<<"block "<<_block<<" passed code constraints"<<std::endl;
 
-	if(makeModel){
-    		formula.push_back(_cs->getMakeConstraints(makeModel));
+//if this file is not relevent to the arch being examined, then return false without examination. We check for code defects first since they do not depend on the //constraints
+	if(!makeModel->isRelevent( _cs->getFilename())){
+		return false;
+	}
+
+    //sarah
+std::string makeConstraints = _cs->getMakeConstraints(makeModel);
+	if(makeModel){	
+    		formula.push_back(makeConstraints);
     		std::string makeformula = formula.join("\n&&\n");
 
-std::cout<<"make part: "<<_cs->getMakeConstraints(makeModel)<<std::endl;
     		SatChecker make_constraints(makeformula);
 
 		if(!make_constraints()){
@@ -109,16 +114,18 @@ std::cout<<"make part: "<<_cs->getMakeConstraints(makeModel)<<std::endl;
 				_formula = makeformula;
 				_arch = ModelContainer::lookupArch(model);
 			}
-			_defectType = Make;			
+//std::cout<<"returning make"<<std::endl;
+			_defectType = Make;		
 			return true;
     		}
 	}
 
     if (model) {
         std::set<std::string> missingSet;
-        formula.push_back(_cs->getKconfigConstraints(model, missingSet));
+        formula.push_back(_cs->getKconfigConstraints(model, missingSet, makeConstraints));
         std::string formula_str = formula.join("\n&&\n");
         SatChecker kconfig_constraints(formula_str);
+
 
         if (!kconfig_constraints()) {
             if (_defectType != Configuration) {
@@ -128,7 +135,7 @@ std::cout<<"make part: "<<_cs->getMakeConstraints(makeModel)<<std::endl;
                 _arch = ModelContainer::lookupArch(model);
             }
             _defectType = Configuration;
-           // _isGlobal = true;
+	//std::cout<<"Returning ocnfiguration defect on arch "<<_arch<<std::endl;
             return true;
         } else {
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
@@ -140,6 +147,7 @@ std::cout<<"make part: "<<_cs->getMakeConstraints(makeModel)<<std::endl;
                     _formula = formula_str;
                     _defectType = Referential;
                 }
+	//std::cout<<"Returning missing defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
                 return true;
             }
         }
@@ -155,6 +163,7 @@ bool DeadBlockDefect::needsCrosscheck() const {
 	return false;
     case Configuration:
     case Make:
+	//std::cout<<	"returning "<<!ModelContainer::isModelExplicitlySpecified()<<std::endl;
 	return !ModelContainer::isModelExplicitlySpecified();
     default:
         // skip crosschecking if we already know that it is global
@@ -208,8 +217,7 @@ filename_sar = "output/" + filename_sar ;
 
     fname_joiner.push_back(filename_sar);
     fname_joiner.push_back(_block);
-
-    if(_arch && !_isGlobal)// || _defectType == Configuration))
+    if(_arch && !_isGlobal)
         fname_joiner.push_back(_arch);
 
     switch(_defectType) {
@@ -236,6 +244,7 @@ undead_blocks++;
 
     const std::string filename = fname_joiner.join(".");
     const std::string &contents = _formula;
+//std::cout<<"THE FORMULA: "<<_formula<<std::endl;
 
     std::ofstream out(filename.c_str());
 
@@ -265,6 +274,7 @@ UndeadBlockDefect::UndeadBlockDefect(CodeSatStream *cs, const char *block)
     : DeadBlockDefect(cs, block) { this->_suffix = "undead"; }
 
 bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
+//std::cout<<"in undead defect "<<std::endl;
     StringJoiner formula;
     const char *parent = _cs->getParent(_block);
 
@@ -272,29 +282,36 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     if (!parent)
         return false;
 
+//std::cout<<"checking arch with model: "<<std::endl;
     if (!_arch)
         _arch = ModelContainer::lookupArch(model);
 
+//std::cout<<"got architecture"<<std::endl;
 	MakeModel* makeModel = MakeModelContainer::lookupModel(_arch);
+//std::cout<<"after makemodel"<<std::endl;
+
+
+    formula.push_back("( " + std::string(parent) + " && ! " + std::string(_block) + " )");
+    formula.push_back(_cs->getCodeConstraints());
+    std::string codeFormula = formula.join("\n&&\n");
+    SatChecker code_constraints(codeFormula);
+
+    if (!code_constraints()) {
+        _defectType = Implementation;
+        _isGlobal = true;
+		_formula = codeFormula;
+        return true;
+    }
 
 //if this file is not relevent to the arch being examined, then return false without examination
 	if(!makeModel->isRelevent( _cs->getFilename()))
 		return false;
 
-    formula.push_back("( " + std::string(parent) + " && ! " + std::string(_block) + " )");
-    formula.push_back(_cs->getCodeConstraints());
-    SatChecker code_constraints(_formula = formula.join("\n&&\n"));
-
-    if (!code_constraints()) {
-        _defectType = Implementation;
-        _isGlobal = true;
-        return true;
-    }
-
 	//sarah
-
+	std::string makeConstraints = "";
 	if(makeModel){
-    		formula.push_back(_cs->getMakeConstraints(makeModel));
+		makeConstraints = _cs->getMakeConstraints(makeModel);
+    		formula.push_back(makeConstraints);
     		std::string makeformula = formula.join("\n&&\n");
     		SatChecker make_constraints(makeformula);
 
@@ -312,7 +329,7 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
 
     if (model) {
         std::set<std::string> missingSet;
-        formula.push_back(_cs->getKconfigConstraints(model, missingSet));
+        formula.push_back(_cs->getKconfigConstraints(model, missingSet, makeConstraints));
         std::string formula_str = formula.join("\n&&\n");
         SatChecker kconfig_constraints(formula_str);
 
@@ -324,7 +341,6 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
                 _arch = ModelContainer::lookupArch(model);
             }
             _defectType = Configuration;
-           // _isGlobal = true;
             return true;
         } else {
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
@@ -336,6 +352,7 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
                     _formula = formula_str;
                     _defectType = Referential;
                 }
+
                 return true;
             }
         }

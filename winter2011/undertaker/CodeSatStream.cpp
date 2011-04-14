@@ -100,19 +100,6 @@ CodeSatStream::CodeSatStream(std::istream &ifs,
 
         (*this) << line << std::endl;
     }
-
-/*	//add the items in the make constraints to the _items list
-	std::string::size_type pos = std::string::npos;
-	MakeModel* makeModel = MakeModelContainer::
-	makeConstraints = makeModel->getExp(_filename);
-	delete makeModel;
-	
-	const std::list<std::string> &items2 = itemsOfString(makeConstraints);
-        for (std::list<std::string>::const_iterator item2 = items2.begin(); item2 != items2.end(); ++item2) {
-            if ((pos = (*item2).find(prefix)) != std::string::npos) { // i.e. matched
-                _items.insert(*item2);
-            }
-	}*/
 }
 
 std::string CodeSatStream::getMakeConstraints(MakeModel *model){
@@ -124,21 +111,25 @@ std::string CodeSatStream::getCodeConstraints() {
 }
 
 std::string CodeSatStream::getKconfigConstraints(const ConfigurationModel *model,
-                                                 std::set<std::string> &missing) {
+                                                 std::set<std::string> &missing, std::string makeConstraints) {
     std::stringstream ss;
 
-    if (!_doCrossCheck || model->doIntersect(Items(), ss, missing, &_defineChecker) <= 0)
+    if (!_doCrossCheck || model->doIntersect(Items(), ss, missing, makeConstraints, &_defineChecker) <= 0)
         return "";
-
+//std::cout<<"Returning "<<ss.str()<<std::endl;
     return std::string(ss.str());
 }
 
 const char *CodeSatStream::getParent(const char *block) {
     ParentMap::const_iterator i = parents.find(std::string(block));
-    if (i == parents.end())
-        return NULL;
-    else
+    if (i == parents.end()){
+//std::cout<<"returning nULL no parent"<<std::endl;        
+return NULL;
+	}
+    else{
+//std::cout<<"Returning "<<(*i).second<<std::endl;
         return (*i).second.c_str();
+}
 }
 
 /**
@@ -146,23 +137,25 @@ const char *CodeSatStream::getParent(const char *block) {
  * \param p_model  primary model to check against
  */
 const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, ConfigurationModel *p_model) {
-
+//std::cout<<"in analyze block"<<std::endl;
     	BlockDefectAnalyzer *defect = new DeadBlockDefect(this, block);
 
 	ConfigurationModel *s_model = ModelContainer::lookupRelatedModel(_filename);
-	bool isArchSpecific = (s_model != NULL);
+	//std::cout<<"looked up related model"<<std::endl;
 
-	ConfigurationModel *tmp_model = p_model;
-
-	if(isArchSpecific)
-		p_model = s_model;
+	//if this is an arch specific file and the model being used is not this arch's model then return no defect
+	if( (s_model != NULL) && (s_model->getName().compare(p_model->getName()) != 0) ){
+	//	std::cout<<"arch specific file and not right model used, returning null"<<std::endl;
+		return NULL;
+	}
 
     	// If this is neither an Implementation, Configuration nor Referential *dead*,
 	// then destroy the analysis and retry with an Undead Analysis
     	if(!defect->isDefect(p_model)) {
         	delete defect;
+	//	std::cout<<"trying with undead"<<std::endl;
         	defect = new UndeadBlockDefect(this, block);
-
+//std::cout<<"sthn wrong here"<<std::endl;
         	// No defect found, block seems OK
         	if(!defect->isDefect(p_model)) {
         	    delete defect;
@@ -173,47 +166,36 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
     	assert(defect->defectType() != BlockDefectAnalyzer::None);
 	
     	// (ATM) Implementation and Configuration defects do not require a crosscheck
-    	if ( isArchSpecific || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
-
-			if(isArchSpecific){
-				p_model = tmp_model;
-			}
-
+    	if ( ModelContainer::isModelExplicitlySpecified() || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
+		//std::cout<<"no  cross check required"<<std::endl;
 	        return defect;
     	}
-//std::cout<<"doing cross check"<<std::endl;
 
     		ModelContainer *f = ModelContainer::getInstance();
 	    	for (ModelContainer::iterator i = f->begin(); i != f->end(); i++) {
         		const std::string &arch = (*i).first;
         		const ConfigurationModel *model = (*i).second;
-
+			//std::cout<<"checking against arch: "<<arch<<std::endl;
         		if (!defect->isDefect(model)) {
             			defect->markOk(arch);
-					//std::cout<<"found block "<<block<<" not dead on arch"<<arch<<std::endl;
-					if(!ModelContainer::isModelExplicitlySpecified())
-	            				return defect;
-					else{
-						delete defect;
-						return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
-					}
+					//return defect;
+				//std::cout<<"not a defect on at least one arch, so we're deleting defect"<<std::endl;	
+				delete defect;
+				return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
+					
         		}
     		}
 	
     
 
-
+	//std::cout<<"returning  a global defect of type "<<defect->defectTypeToString()<<std::endl;
 	defect->defectIsGlobal();
-	
-
-	if(isArchSpecific){
-		p_model = tmp_model;
-	}
 
     return defect;
 }
 
 void CodeSatStream::analyzeBlocks() {
+//std::cout<<"in analyze blocks"<<std::endl;
     ConfigurationModel *p_model = 0;
 	//MakeModel *make_model = 0;
 
@@ -221,12 +203,7 @@ void CodeSatStream::analyzeBlocks() {
         ModelContainer *f = ModelContainer::getInstance();
         p_model = f->lookupMainModel();	
     }
-
-	//if(_doMakeCheck){
-	//	MakeModelContainer *mmCont = MakeModelContainer::getInstance();
-		//make_model = mmCont->lookupMainModel();
-	//}
-
+	
     std::set<std::string>::iterator i;
     processed_units++;
     try {
@@ -254,8 +231,7 @@ void CodeSatStream::analyzeBlocks() {
         processed_items += _items.size();
     } catch (SatCheckerError &e) {
         failed_blocks++;
-        std::cout << "Couldn't process " << _filename <<std::endl; 
-//": "<< e.what() << std::endl;
+        std::cout << "Couldn't process " << _filename <<": "<< e.what() << std::endl;
     }
 }
 
@@ -306,7 +282,6 @@ int finalStart = 0, finalEnd =0;
 		finalEnd = last;
         }
     }
-std::cout<<"Block starts at line: " <<finalStart<<" and ends at line: "<<finalEnd<<std::endl;
     return block;
 }
 
@@ -338,7 +313,7 @@ std::list<SatChecker::AssignmentMap> CodeSatStream::blockCoverage(ConfigurationM
             formula.push_back((*i));
             formula.push_back(getCodeConstraints());
             if (model)
-                formula.push_back(getKconfigConstraints(model, missingSet));
+                formula.push_back(getKconfigConstraints(model, missingSet,""));
 
             for (MissingSet::iterator it = missingSet.begin(); it != missingSet.end(); it++)
                 formula.push_back("!" + (*it));
@@ -391,8 +366,7 @@ std::list<SatChecker::AssignmentMap> CodeSatStream::blockCoverage(ConfigurationM
             }
         }
     } catch (SatCheckerError &e) {
-        std::cerr << "Couldn't process " << _filename <<std::endl; 
-//": "<< e.what() << std::endl;
+        std::cerr << "Couldn't process " << _filename <<": "<< e.what() << std::endl;
     }
     return ret;
 }
