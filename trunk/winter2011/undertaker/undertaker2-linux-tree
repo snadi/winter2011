@@ -59,7 +59,7 @@ if ! ls "$MODELS"/*.model >/dev/null 2>&1; then
 fi
 
 find . -name "*.[hcS]" | shuf > undertaker-worklist
-find . -name '*dead' -exec rm -f {} +
+#find . -name '*dead' -exec rm -f {} +
 
 
 if [ -n "$COVERAGE" ]; then
@@ -74,7 +74,7 @@ if [ -n "$COVERAGE" ]; then
 	    sort -n -r | \
 	    head -n 50 | tee coverage.stats
 else 
-    echo "Analyzing $(wc -l < worklist) files with $PROCESSORS threads."
+    echo "Analyzing $(wc -l < undertaker-worklist) files with $PROCESSORS threads."
     time undertaker2 -t "$PROCESSORS" -b undertaker-worklist -m "$MODELS" -M "$DEFAULT_ARCH"
-    printf "\n\nFound %s global defects\n" "$(find . -name '*dead'| grep globally | wc -l)"
+    printf "\n\nFound %s global defects\n" "$(find . -name '*dead.M'| grep globally | wc -l)"
 fi

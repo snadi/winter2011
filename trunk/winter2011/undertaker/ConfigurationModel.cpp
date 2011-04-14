@@ -118,16 +118,26 @@ std::string ConfigurationModel::getMissingItemsConstraints(std::set<std::string>
 }
 
 int ConfigurationModel::doIntersect(std::set<std::string> myset, std::ostream &out,
-                                    std::set<std::string> &missing, const ConfigurationModel::Checker *c) const {
+                                    std::set<std::string> &missing, std::string makeConstraints, const ConfigurationModel::Checker *c) const {
      int valid_items = 0;
      StringJoiner sj;
+
+    	char prefix[] = "CONFIG_";
+	std::string::size_type pos = std::string::npos;
+	//add the items in the makeConstraints to the list of interesting items so that their kconfig rules can be retrieved
+	const std::list<std::string> &items2 = itemsOfString(makeConstraints);
+        for (std::list<std::string>::const_iterator item2 = items2.begin(); item2 != items2.end(); ++item2) {
+            if ((pos = (*item2).find(prefix)) != std::string::npos) { // i.e. matched
+                myset.insert(*item2);
+            }
+	}
 
     findSetOfInterestingItems(myset);
 
     for(std::set<std::string>::const_iterator it = myset.begin(); it != myset.end(); it++) {
         std::stringstream ss;
         const std::string *item = getValue(*it);
-
+//std::cout<<"condition for "<<*it<<" is "<<*item<<std::endl;
         if (item != NULL) {
             valid_items++;
             if (item->compare("") != 0)
@@ -139,8 +149,10 @@ int ConfigurationModel::doIntersect(std::set<std::string> myset, std::ostream &o
                 continue;
             }
 
-            if (it->size() > 1)
+            if (it->size() > 1){
+	//std::cout<<"inserting "<<*it<<" as missing"<<std::endl;
                 missing.insert(*it);
+		}
         }
     }
     out << sj.join("\n&&\n");

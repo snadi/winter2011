@@ -295,14 +295,15 @@ void SatChecker::fillSatChecker(std::string expression) throw (SatCheckerError) 
     if (info.full) {
         fillSatChecker(info);
     } else {
-        /*Enable this line to get the position where the parser dies
+       // Enable this line to get the position where the parser dies
         std::cout << std::string(expression.begin(), expression.begin()
                                  + info.length) << std::endl;
-       */ 
+        
         Picosat::picosat_reset();
 //sarah
-//        throw SatCheckerError("SatChecker: Couldn't parse: " + expression);
-        throw SatCheckerError("");
+        throw SatCheckerError("SatChecker: Couldn't parse: " + expression + " at line: " + std::string(expression.begin(), expression.begin()
+                                 + info.length) );
+//        throw SatCheckerError("");
     }
 }
 

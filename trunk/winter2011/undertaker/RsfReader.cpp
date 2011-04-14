@@ -34,8 +34,12 @@ RsfReader::RsfReader(std::ifstream &f, std::ostream &log)
 
 
 void RsfReader::print_contents(std::ostream &out) {
-    for (iterator i = begin(); i != end(); i++)
+std::cout<<"in print_contents"<<std::endl;
+    for (iterator i = begin(); i != end(); i++){
+	std::cout<<"looping"<<(*i).first<<std::endl;
+
         out << (*i).first << " : " << (*i).second.front() << std::endl;
+	}
 }
 
 StringList RsfReader::parse(const std::string& line) {

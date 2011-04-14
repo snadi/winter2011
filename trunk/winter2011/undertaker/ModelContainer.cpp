@@ -152,7 +152,6 @@ ConfigurationModel* ModelContainer::lookupRelatedModel(std::string fileName)  {
 		return NULL;
 	}	
 	
-	std::cout<<"looking for: "<<fileName<<std::endl;
 
 	if(ModelContainer::isArchName(fileName)){
  	   	// first step: look if we have it in our models list;
