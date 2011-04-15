@@ -94,16 +94,17 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
         return true;
     }
 
-//std::cout<<"block "<<_block<<" passed code constraints"<<std::endl;
 
 //if this file is not relevent to the arch being examined, then return false without examination. We check for code defects first since they do not depend on the //constraints
-	if(!makeModel->isRelevent( _cs->getFilename())){
-		return false;
-	}
+	//if(!makeModel->isRelevent( _cs->getFilename())){
+	//	return false;
+	//}
 
     //sarah
-std::string makeConstraints = _cs->getMakeConstraints(makeModel);
+	std::string makeConstraints = "";
 	if(makeModel){	
+
+		makeConstraints = _cs->getMakeConstraints(makeModel);
     		formula.push_back(makeConstraints);
     		std::string makeformula = formula.join("\n&&\n");
 
@@ -120,7 +121,9 @@ std::string makeConstraints = _cs->getMakeConstraints(makeModel);
     		}
 	}
 
+
     if (model) {
+
         std::set<std::string> missingSet;
         formula.push_back(_cs->getKconfigConstraints(model, missingSet, makeConstraints));
         std::string formula_str = formula.join("\n&&\n");
@@ -152,6 +155,7 @@ std::string makeConstraints = _cs->getMakeConstraints(makeModel);
             }
         }
     }
+std::cout<<"not a dead defect: "<<false<<std::endl;
     return false;
 }
 
@@ -274,7 +278,7 @@ UndeadBlockDefect::UndeadBlockDefect(CodeSatStream *cs, const char *block)
     : DeadBlockDefect(cs, block) { this->_suffix = "undead"; }
 
 bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
-//std::cout<<"in undead defect "<<std::endl;
+std::cout<<"in undead defect "<<std::endl;
     StringJoiner formula;
     const char *parent = _cs->getParent(_block);
 
@@ -304,8 +308,8 @@ bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
     }
 
 //if this file is not relevent to the arch being examined, then return false without examination
-	if(!makeModel->isRelevent( _cs->getFilename()))
-		return false;
+	//if(!makeModel->isRelevent( _cs->getFilename()))
+	//	return false;
 
 	//sarah
 	std::string makeConstraints = "";
