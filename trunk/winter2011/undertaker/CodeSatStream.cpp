@@ -140,20 +140,21 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 //std::cout<<"in analyze block"<<std::endl;
     	BlockDefectAnalyzer *defect = new DeadBlockDefect(this, block);
 
-	ConfigurationModel *s_model = ModelContainer::lookupRelatedModel(_filename);
+	//ConfigurationModel *s_model = ModelContainer::lookupRelatedModel(_filename);
 	//std::cout<<"looked up related model"<<std::endl;
 
 	//if this is an arch specific file and the model being used is not this arch's model then return no defect
-	if( (s_model != NULL) && (s_model->getName().compare(p_model->getName()) != 0) ){
+	//if( (s_model != NULL) && (s_model->getName().compare(p_model->getName()) != 0) ){
 	//	std::cout<<"arch specific file and not right model used, returning null"<<std::endl;
-		return NULL;
-	}
+	//	return NULL;
+	//}
 
     	// If this is neither an Implementation, Configuration nor Referential *dead*,
 	// then destroy the analysis and retry with an Undead Analysis
+std::cout<<"testing dead defect result "<<defect->isDefect(p_model)<<std::endl;
     	if(!defect->isDefect(p_model)) {
         	delete defect;
-	//	std::cout<<"trying with undead"<<std::endl;
+		std::cout<<"trying with undead"<<std::endl;
         	defect = new UndeadBlockDefect(this, block);
 //std::cout<<"sthn wrong here"<<std::endl;
         	// No defect found, block seems OK
@@ -167,7 +168,7 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 	
     	// (ATM) Implementation and Configuration defects do not require a crosscheck
     	if ( ModelContainer::isModelExplicitlySpecified() || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
-		//std::cout<<"no  cross check required"<<std::endl;
+	//	std::cout<<"no  cross check required"<<std::endl;
 	        return defect;
     	}
 
@@ -177,6 +178,7 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
         		const ConfigurationModel *model = (*i).second;
 			//std::cout<<"checking against arch: "<<arch<<std::endl;
         		if (!defect->isDefect(model)) {
+			//std::cout<<"passed "<<std::endl;
             			defect->markOk(arch);
 					//return defect;
 				//std::cout<<"not a defect on at least one arch, so we're deleting defect"<<std::endl;	
@@ -184,6 +186,7 @@ const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, Config
 				return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
 					
         		}
+			//std::cout<<"failed "<<std::endl;
     		}
 	
     

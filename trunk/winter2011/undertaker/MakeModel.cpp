@@ -44,7 +44,7 @@ std::string MakeModel::getExp(std::string fileName){
 		}
 	}
 
-return "(false)";
+return "";
 }
 
 bool MakeModel::isRelevent(std::string fileName){
