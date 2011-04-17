@@ -85,15 +85,13 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
     formula.push_back(_cs->getCodeConstraints());
 	std::string codeFormula = formula.join("\n&&\n");
     SatChecker code_constraints(codeFormula);
-
     if (!code_constraints()) {
         _defectType = Implementation;
         _isGlobal = true;
 	_formula = codeFormula;
-//std::cout<<"returning code defect"<<std::endl;
+//std::cout<<_block<<" is dead code defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
         return true;
     }
-
 
 //if this file is not relevent to the arch being examined, then return false without examination. We check for code defects first since they do not depend on the //constraints
 	//if(!makeModel->isRelevent( _cs->getFilename())){
@@ -116,7 +114,8 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
 				_arch = ModelContainer::lookupArch(model);
 			}
 //std::cout<<"returning make"<<std::endl;
-			_defectType = Make;		
+			_defectType = Make;
+//std::cout<<_block<<" is dead make defect on arch " <<ModelContainer::lookupArch(model)<<std::endl;		
 			return true;
     		}
 	}
@@ -139,6 +138,7 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
             }
             _defectType = Configuration;
 	//std::cout<<"Returning ocnfiguration defect on arch "<<_arch<<std::endl;
+//std::cout<<_block<<" is dead kconfig defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
             return true;
         } else {
             formula.push_back(ConfigurationModel::getMissingItemsConstraints(missingSet));
@@ -151,11 +151,12 @@ bool DeadBlockDefect::isDefect(const ConfigurationModel *model) {
                     _defectType = Referential;
                 }
 	//std::cout<<"Returning missing defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
+//std::cout<<_block<<" is missing code defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
                 return true;
             }
         }
     }
-std::cout<<"not a dead defect: "<<false<<std::endl;
+//std::cout<<_block<<" not a dead defect on arch "<<ModelContainer::lookupArch(model)<<std::endl;
     return false;
 }
 
@@ -203,7 +204,7 @@ kconfig_blocks++;
 
 bool DeadBlockDefect::writeReportToFile() const {
     StringJoiner fname_joiner;
-
+std::cout<<"in write repot to file"<<std::endl;
 //sarah
 std::string filename_sar = _cs->getFilename();
 if(filename_sar [0]=='.' && filename_sar [1] == '/'){
@@ -278,14 +279,14 @@ UndeadBlockDefect::UndeadBlockDefect(CodeSatStream *cs, const char *block)
     : DeadBlockDefect(cs, block) { this->_suffix = "undead"; }
 
 bool UndeadBlockDefect::isDefect(const ConfigurationModel *model) {
-std::cout<<"in undead defect "<<std::endl;
+//std::cout<<"in undead defect "<<std::endl;
     StringJoiner formula;
     const char *parent = _cs->getParent(_block);
-
+//std::cout<<"gor parent block "<<std::endl;
     // no parent -> impossible to be undead
     if (!parent)
         return false;
-
+//std::cout<<"has a parent "<<std::endl;
 //std::cout<<"checking arch with model: "<<std::endl;
     if (!_arch)
         _arch = ModelContainer::lookupArch(model);
@@ -299,13 +300,15 @@ std::cout<<"in undead defect "<<std::endl;
     formula.push_back(_cs->getCodeConstraints());
     std::string codeFormula = formula.join("\n&&\n");
     SatChecker code_constraints(codeFormula);
-
+//std::cout<<"bekh formula: "<<codeFormula<<std::endl;
     if (!code_constraints()) {
         _defectType = Implementation;
         _isGlobal = true;
 		_formula = codeFormula;
+	//std::cout<<"found defect"<<std::endl;
         return true;
     }
+	//std::cout<<"did not find defect"<<std::endl;
 
 //if this file is not relevent to the arch being examined, then return false without examination
 	//if(!makeModel->isRelevent( _cs->getFilename()))

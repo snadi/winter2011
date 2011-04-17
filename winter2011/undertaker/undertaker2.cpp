@@ -207,7 +207,8 @@ std::cout<<"in process file blockpc"<<std::endl;
     ConfigurationModel *model = ModelContainer::lookupMainModel();
 std::cout<<"caling analyze block"<<std::endl;
     const BlockDefectAnalyzer *defect = sat_stream->analyzeBlock(matched_block.c_str(), model);
-defect->writeReportToFile();
+std::cout<<"returned from analyze block"<<std::endl;
+//defect->writeReportToFile();
     /* Get the Precondition */
     DeadBlockDefect dead(sat_stream, matched_block.c_str());
     std::string precondition = dead.getBlockPrecondition(model);
@@ -531,6 +532,7 @@ bool modelExplicitlySpecified = false;
                 int worked_on = 0;
                 for (unsigned int i = thread_number; i < workfiles.size(); i+= threads) {
                     /* calling the function pointer */
+			std::cout<<"calling file:"<<workfiles[i].c_str()<<std::endl;
                     process_file(workfiles[i].c_str(), true, loadModels, loadMakeModels);
                     worked_on++;
                 }
