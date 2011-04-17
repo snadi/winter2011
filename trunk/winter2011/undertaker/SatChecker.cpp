@@ -289,6 +289,7 @@ int SatChecker::transform_bool_rec(iter_t const& input) {
 
 void SatChecker::fillSatChecker(std::string expression) throw (SatCheckerError) {
     static bool_grammar e;
+//std::cout<<"CHECKING EXPRESSION : "<<expression<<std::endl;
     tree_parse_info<> info = pt_parse(expression.c_str(), e,
                                       space_p | ch_p("\n") | ch_p("\r"));
 
@@ -296,8 +297,8 @@ void SatChecker::fillSatChecker(std::string expression) throw (SatCheckerError) 
         fillSatChecker(info);
     } else {
        // Enable this line to get the position where the parser dies
-        std::cout << std::string(expression.begin(), expression.begin()
-                                 + info.length) << std::endl;
+     //   std::cout << std::string(expression.begin(), expression.begin()
+       //                          + info.length) << std::endl;
         
         Picosat::picosat_reset();
 //sarah

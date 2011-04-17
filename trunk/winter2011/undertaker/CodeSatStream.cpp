@@ -116,20 +116,16 @@ std::string CodeSatStream::getKconfigConstraints(const ConfigurationModel *model
 
     if (!_doCrossCheck || model->doIntersect(Items(), ss, missing, makeConstraints, &_defineChecker) <= 0)
         return "";
-//std::cout<<"Returning "<<ss.str()<<std::endl;
+
     return std::string(ss.str());
 }
 
 const char *CodeSatStream::getParent(const char *block) {
     ParentMap::const_iterator i = parents.find(std::string(block));
-    if (i == parents.end()){
-//std::cout<<"returning nULL no parent"<<std::endl;        
-return NULL;
-	}
-    else{
-//std::cout<<"Returning "<<(*i).second<<std::endl;
+    if (i == parents.end())        
+		return NULL;
+    else
         return (*i).second.c_str();
-}
 }
 
 /**
@@ -137,26 +133,17 @@ return NULL;
  * \param p_model  primary model to check against
  */
 const BlockDefectAnalyzer* CodeSatStream::analyzeBlock(const char *block, ConfigurationModel *p_model) {
-//std::cout<<"in analyze block"<<std::endl;
+//std::cout<<"---------------------- "<<block<<std::endl;
+//std::cout<<"in analyze block with block "<<block<<std::endl;
     	BlockDefectAnalyzer *defect = new DeadBlockDefect(this, block);
 
-	//ConfigurationModel *s_model = ModelContainer::lookupRelatedModel(_filename);
-	//std::cout<<"looked up related model"<<std::endl;
-
-	//if this is an arch specific file and the model being used is not this arch's model then return no defect
-	//if( (s_model != NULL) && (s_model->getName().compare(p_model->getName()) != 0) ){
-	//	std::cout<<"arch specific file and not right model used, returning null"<<std::endl;
-	//	return NULL;
-	//}
 
     	// If this is neither an Implementation, Configuration nor Referential *dead*,
 	// then destroy the analysis and retry with an Undead Analysis
-std::cout<<"testing dead defect result "<<defect->isDefect(p_model)<<std::endl;
-    	if(!defect->isDefect(p_model)) {
+	if(!defect->isDefect(p_model)) {
         	delete defect;
-		std::cout<<"trying with undead"<<std::endl;
+		//std::cout<<"trying with undead"<<std::endl;
         	defect = new UndeadBlockDefect(this, block);
-//std::cout<<"sthn wrong here"<<std::endl;
         	// No defect found, block seems OK
         	if(!defect->isDefect(p_model)) {
         	    delete defect;
@@ -164,7 +151,7 @@ std::cout<<"testing dead defect result "<<defect->isDefect(p_model)<<std::endl;
         	}
     	}
 
-    	assert(defect->defectType() != BlockDefectAnalyzer::None);
+    	assert(defect->defectType() != BlockDefectAnalyzer::None);	
 	
     	// (ATM) Implementation and Configuration defects do not require a crosscheck
     	if ( ModelContainer::isModelExplicitlySpecified() || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
@@ -178,23 +165,67 @@ std::cout<<"testing dead defect result "<<defect->isDefect(p_model)<<std::endl;
         		const ConfigurationModel *model = (*i).second;
 			//std::cout<<"checking against arch: "<<arch<<std::endl;
         		if (!defect->isDefect(model)) {
-			//std::cout<<"passed "<<std::endl;
+				delete defect;
+				std::cout<<"trying with undead"<<std::endl;
+        			defect = new UndeadBlockDefect(this, block);
+        			// No defect found, block seems OK
+        			if(!defect->isDefect(p_model)) {
+        			    delete defect;
+        			    return NULL;
+        			}
             			defect->markOk(arch);
 					//return defect;
-				//std::cout<<"not a defect on at least one arch, so we're deleting defect"<<std::endl;	
 				delete defect;
 				return NULL; //if it is not a defect on at least one arch, then it is not really a defect!
 					
         		}
-			//std::cout<<"failed "<<std::endl;
     		}
 	
     
-
-	//std::cout<<"returning  a global defect of type "<<defect->defectTypeToString()<<std::endl;
 	defect->defectIsGlobal();
 
-    return defect;
+return defect;
+}
+
+bool CodeSatStream::doDefectCrossCheck(BlockDefectAnalyzer* defect, bool firstTime, const char *block, ConfigurationModel *p_model){
+
+	// (ATM) Implementation and Configuration defects do not require a crosscheck
+    	if ( ModelContainer::isModelExplicitlySpecified() || ((!_doCrossCheck || !defect->needsCrosscheck()) && !_doMakeCheck) ){
+	//	std::cout<<"no  cross check required"<<std::endl;
+	        return false;
+    	}
+
+    		ModelContainer *f = ModelContainer::getInstance();
+	    	for (ModelContainer::iterator i = f->begin(); i != f->end(); i++) {
+        		const std::string &arch = (*i).first;
+        		const ConfigurationModel *model = (*i).second;
+			//std::cout<<"checking against arch: "<<arch<<std::endl;
+        		if (!defect->isDefect(model)) {
+
+				if(firstTime){
+					delete defect;
+					std::cout<<"trying with undead"<<std::endl;
+					defect = new UndeadBlockDefect(this, block);
+					// No defect found, block seems OK
+					if(!defect->isDefect(p_model)) {
+					    delete defect;
+					    return false;
+					}
+					doDefectCrossCheck(defect, false, block, p_model);
+				}else{
+		    			defect->markOk(arch);
+						//return defect;
+					delete defect;
+					return false; //if it is not a defect on at least one arch, then it is not really a defect!
+				}
+					
+        		}
+    		}
+	
+    
+	defect->defectIsGlobal();
+return true;
+
 }
 
 void CodeSatStream::analyzeBlocks() {

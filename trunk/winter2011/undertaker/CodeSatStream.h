@@ -148,6 +148,8 @@ protected:
     std::stringstream kconfigConstraints;
     std::stringstream missingItemsConstraints;
 
+bool doDefectCrossCheck(BlockDefectAnalyzer* defect, bool firstTime, const char *block, ConfigurationModel *p_model);
+
     static unsigned int processed_units;
     static unsigned int processed_blocks;
     static unsigned int failed_blocks;
